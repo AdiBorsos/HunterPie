@@ -54,28 +54,33 @@ namespace HunterPie.Core {
 
         private static void PopulateZones() {
             Zones.Add(0, "Main Menu");
-            Zones.Add(3, "Great Ravine");
-            Zones.Add(5, "Living Quarters");
-            Zones.Add(7, "Main Menu");
-            Zones.Add(8, "Special Arena");
-            Zones.Add(10, "Confluence of Fates");
-            Zones.Add(11, "Gathering Hub");
-            Zones.Add(12, "Caverns of El Dorado");
-            Zones.Add(15, "Private Suite");
-            Zones.Add(16, "Private Quarters");
-            Zones.Add(17, "Main Menu");
-            Zones.Add(18, "Elder's Recess");
-            Zones.Add(21, "Gathering Hub"); // During events
-            Zones.Add(23, "Training Area");
-            Zones.Add(24, "Research Base");
-            Zones.Add(28, "Astera"); // For new players?
-            Zones.Add(31, "Astera");
-            Zones.Add(33, "Astera"); // During events
-            Zones.Add(37, "Rotten Vale");
-            Zones.Add(58, "Coral Highlands");
-            Zones.Add(64, "Wildspire Waste");
-            Zones.Add(88, "Ancient Forest"); // Tutorial map
-            Zones.Add(94, "Ancient Forest");
+            Zones.Add(101, "Ancient Forest");
+            Zones.Add(102, "Wildspire Waste");
+            Zones.Add(103, "Coral Highlands");
+            Zones.Add(104, "Rotten Vale");
+            Zones.Add(105, "Elder's Recess");
+            Zones.Add(106, "Great Ravine");
+            Zones.Add(107, "Great Ravine");
+            Zones.Add(108, "Hoarfrost Reach");
+            Zones.Add(109, "The Guiding Lands");
+            Zones.Add(201, "Special Arena");
+            Zones.Add(202, "Arena");
+            Zones.Add(301, "Astera");
+            Zones.Add(302, "Gathering Hub");
+            Zones.Add(303, "Research Base");
+            Zones.Add(305, "Seliana");
+            Zones.Add(306, "Gathering Hub"); // Seliana's
+            Zones.Add(401, "Ancient Forest"); // Intro
+            Zones.Add(403, "Everstream");
+            Zones.Add(405, "Confluence of Fates");
+            Zones.Add(406, "Ancient Forest"); // Tutorial
+            Zones.Add(409, "Caverns of El Dorado");
+            Zones.Add(501, "Living Quarters");
+            Zones.Add(502, "Private Quarters");
+            Zones.Add(503, "Private Suite");
+            Zones.Add(504, "Training Area");
+            Zones.Add(505, "Chamber of Five");
+            Zones.Add(506, "Seliana Room");
         }
 
         private static void PopulateWeapons() {
@@ -96,40 +101,67 @@ namespace HunterPie.Core {
         }
 
         private static void PopulateMonsters() {
-            Monsters.Add("em100_00", "Anjanath");
-            Monsters.Add("em101_00", "Great Jagras");
-            Monsters.Add("em002_01", "Azure Rathalos");
-            Monsters.Add("em044_00", "Barroth");
-            Monsters.Add("em118_00", "Bazelgeuse");
-            Monsters.Add("em121_00", "Behemoth");
-            Monsters.Add("em007_01", "Black Diablos");
-            Monsters.Add("em043_00", "Deviljho");
-            Monsters.Add("em007_00", "Diablos");
-            Monsters.Add("em116_00", "Dodogama");
-            Monsters.Add("em112_00", "Great Girros");
-            Monsters.Add("em108_00", "Jyuratodus");
-            Monsters.Add("em011_00", "Kirin");
-            Monsters.Add("em107_00", "Kulu Ya Ku");
-            Monsters.Add("em117_00", "Kulve Taroth");
-            Monsters.Add("em024_00", "Kushala Daora");
-            Monsters.Add("em036_00", "Lavasioth");
-            Monsters.Add("em111_00", "Legiana");
-            Monsters.Add("em026_00", "Lunastra");
-            Monsters.Add("em103_00", "Nergigante");
-            Monsters.Add("em113_00", "Odogaron");
-            Monsters.Add("em110_00", "Paolumu");
-            Monsters.Add("em001_01", "Pink Rathian");
-            Monsters.Add("em102_00", "Pukei Pukei");
-            Monsters.Add("em114_00", "Radobaan");
-            Monsters.Add("em002_00", "Rathalos");
             Monsters.Add("em001_00", "Rathian");
+            Monsters.Add("em001_01", "Pink Rathian");
+            Monsters.Add("em001_02", "Gold Rathian");
+            Monsters.Add("em002_00", "Rathalos");
+            Monsters.Add("em002_01", "Azure Rathalos");
+            Monsters.Add("em002_02", "Silver Rathalos");
+            Monsters.Add("em007_00", "Diablos");
+            Monsters.Add("em007_01", "Black Diablos");
+            Monsters.Add("em011_00", "Kirin");
+            Monsters.Add("em018_00", "Yian Garuga");
+            Monsters.Add("em018_05", "Scarred Yian Garuga");
+            Monsters.Add("em024_00", "Kushala Daora");
+            Monsters.Add("em026_00", "Lunastra");
             Monsters.Add("em027_00", "Teostra");
-            Monsters.Add("em109_00", "Tobi Kadachi");
-            Monsters.Add("em120_00", "Tzitzi-Ya-Ku");
+            Monsters.Add("em032_00", "Tigrex");
+            Monsters.Add("em032_01", "Brute Tigrex");
+            Monsters.Add("em036_00", "Lavasioth");
+            Monsters.Add("em037_00", "Nargacuga");
+            Monsters.Add("em042_00", "Barioth");
+            Monsters.Add("em043_00", "Deviljho");
+            Monsters.Add("em043_05", "Savage Deviljho");
+            Monsters.Add("em044_00", "Barroth");
             Monsters.Add("em045_00", "Uragaan");
-            Monsters.Add("em115_00", "Vaal Hazak");
-            Monsters.Add("em105_00", "Xeno'Jiiva");
+            Monsters.Add("em057_00", "Zinogre");
+            Monsters.Add("em063_00", "Brachydios");
+            Monsters.Add("em080_00", "Glavenus");
+            Monsters.Add("em080_01", "Acidic Glavenus");
+            Monsters.Add("em100_00", "Anjanath");
+            Monsters.Add("em100_01", "Fulgur Anjanath");
+            Monsters.Add("em101_00", "Great Jagras");
+            Monsters.Add("em102_00", "Pukei-Pukei");
+            Monsters.Add("em102_01", "Coral Pukei-Pukei");
+            Monsters.Add("em103_00", "Nergigante");
+            Monsters.Add("em103_05", "Ruiner Nergigante");
+            Monsters.Add("em105_00", "Xeno'jiiva");
             Monsters.Add("em106_00", "Zorah Magdaros");
+            Monsters.Add("em107_00", "Kulu-Ya-Ku");
+            Monsters.Add("em108_00", "Jyuratodus");
+            Monsters.Add("em109_00", "Tobi-Kadachi");
+            Monsters.Add("em109_01", "Viper Tobi-Kadachi");
+            Monsters.Add("em110_00", "Paolumu");
+            Monsters.Add("em110_01", "Nightshade Paolumu");
+            Monsters.Add("em111_00", "Legiana");
+            Monsters.Add("em111_05", "Shrieking Legiana");
+            Monsters.Add("em112_00", "Great Girros");
+            Monsters.Add("em113_00", "Odogaron");
+            Monsters.Add("em113_01", "Ebony Odogaron");
+            Monsters.Add("em114_00", "Radobaan");
+            Monsters.Add("em115_00", "Vaal Hazak");
+            Monsters.Add("em115_05", "Blackveil Vaal Hazak");
+            Monsters.Add("em116_00", "Dodogama");
+            Monsters.Add("em117_00", "Kulve Taroth");
+            Monsters.Add("em118_00", "Bazelgeuse");
+            Monsters.Add("em118_05", "Seething Bazelgeuse");
+            Monsters.Add("em120_00", "Tzitzi-Ya-Ku");
+            Monsters.Add("em121_00", "Behemoth");
+            Monsters.Add("em122_00", "Beotodus");
+            Monsters.Add("em123_00", "Banbaro");
+            Monsters.Add("em124_00", "Velkhana");
+            Monsters.Add("em125_00", "Namielle");
+            Monsters.Add("em126_00", "Shara Ishvalda");
             Monsters.Add("em127_00", "Leshen");
             Monsters.Add("em127_01", "Ancient Leshen");
         }

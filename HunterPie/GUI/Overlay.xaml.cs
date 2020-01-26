@@ -140,7 +140,7 @@ namespace HunterPie.GUI {
             // Third monster
             ctx.ThirdMonster.OnMonsterSpawn -= this.OnThirdMonsterSpawn;
             ctx.ThirdMonster.OnMonsterDespawn -= this.OnThirdMonsterDespawn;
-            ctx.ThirdMonster.OnMonsterDespawn -= this.OnThirdMonsterDespawn;
+            ctx.ThirdMonster.OnMonsterDeath -= this.OnThirdMonsterDespawn;
             ctx.ThirdMonster.OnHPUpdate -= this.UpdateThirdMonster;
         }
 

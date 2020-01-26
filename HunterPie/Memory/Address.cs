@@ -6,30 +6,25 @@ using HunterPie.Logger;
 namespace HunterPie.Memory {
     class Address {
         public class Offsets {
-            public static Int64[] LevelOffsets = new Int64[4] { 0x70, 0x68, 0x8, 0x20 };
-            public static Int64 LevelLastOffset = 0x108;
+            public static Int64[] LevelOffsets = new Int64[5] { 0x70, 0x68, 0x8, 0x20, 0x108 };
 
-            public static Int64[] ZoneOffsets = new Int64[4] { 0x660, 0x28, 0x18, 0x440 };
-            public static Int64 ZoneLastOffset = 0x2B0;
+            public static Int64[] WeaponOffsets = new Int64[5] { 0x70, 0x5A8, 0x310, 0x148, 0x2B8 };
 
-            public static Int64[] WeaponOffsets = new Int64[4] { 0x70, 0x5A8, 0x310, 0x148 };
-            public static Int64 WeaponLastOffset = 0x2B8;
+            public static Int64[] SessionOffsets = new Int64[5] { 0xA0, 0x20, 0x80, 0x9C, 0x3C8 };
 
-            public static Int64[] SessionOffsets = new Int64[4] { 0xA0, 0x20, 0x80, 0x9C };
-            public static Int64 SessionLastOffset = 0x3C8;
+            public static Int64[] EquipmentOffsets = new Int64[5] { 0x78, 0x50, 0x40, 0x450, 0x0 };
 
-            public static Int64[] EquipmentOffsets = new Int64[4] { 0x78, 0x50, 0x40, 0x450 };
-            public static Int64 EquipmentLastOffset = 0x0;
+            public static Int64[] PartyOffsets = new Int64[2] { 0x0, 0x0 };
 
-            public static Int64[] PartyOffsets = new Int64[1] { 0x0 };
-            public static Int64 PartyLastOffset = 0x0;
-
-            public static Int64[] MonsterOffsets = new Int64[2] { 0xAF738, 0x47CDE0 };
-            public static Int64 MonsterLastOffset = 0x0;
+            public static Int64[] MonsterOffsets = new Int64[3] { 0xAF738, 0x47CDE0, 0x0 };
+            public static Int64 NextMonsterPtr = 0x28;
+            public static Int64 MonsterHPComponentOffset = 0x129D8 + 0x48;
+            public static Int64 MonsterNamePtr = 0x290;
 
             public static Int64 FertilizersOffset = 0x6740C;
             public static Int64 HarvestBoxOffset = 0x10;
         }
+        public static int PREICEBORNE_VERSION = 168031;
         public static int GAME_VERSION = 168031;
 
         // Static addresses
@@ -50,6 +45,7 @@ namespace HunterPie.Memory {
 
         // Loaded values
         private static Dictionary<string, Int64> MappedAddresses = new Dictionary<string, Int64>();
+        private static Dictionary<string, Int64[]> MappedOffsets = new Dictionary<string, Int64[]>();
         
         public static bool LoadMemoryMap(int version) {
             string FILE_NAME = $"MonsterHunterWorld.{version}.map";
@@ -70,20 +66,49 @@ namespace HunterPie.Memory {
         private static void LoadMemoryAddresses(string filename) {
             // Clear all loaded values
             MappedAddresses.Clear();
+            MappedOffsets.Clear();
             string[] fileLines = File.ReadAllLines($"address/{filename}");
             foreach (string line in fileLines) {
+                if (line.StartsWith("#")) continue; // Ignore comments
                 string[] parsed = line.Split(' ');
                 // parsed[0]: type
                 // parsed[1]: name
                 // parsed[2]: value
-                Int64 parsedValue;
-                try {
-                    parsedValue = ParseHex(parsed[2]);
-                } catch {
-                    Debugger.Error($"Failed parsing value for \"{parsed[1]}\"");
-                    parsedValue = 0xFFFFFFFF;
-                }
-                MappedAddresses.Add(parsed[1], parsedValue);
+                AddValueToMap(parsed[0], parsed);
+            }
+        }
+
+        private static void AddValueToMap(string type, string[] values) {
+            string name = values[1];
+            string value = values[2];
+            switch(type) {
+                case "Address":
+                case "long":
+                    Int64 parsedValue;
+                    try {
+                        parsedValue = ParseHex(value);
+                    } catch {
+                        Debugger.Error($"Failed parsing value for \"{name}\"");
+                        parsedValue = 0xFFFFFFFF;
+                    }
+                    MappedAddresses.Add(name, parsedValue);
+                    break;
+                case "Offset":
+                    string[] strOffsets = value.Split(',');
+                    Int64[] offsets = new Int64[strOffsets.Length];
+                    for (int i = 0; i < strOffsets.Length; i++) {
+                        try {
+                            offsets[i] = ParseHex(strOffsets[i]);
+                        } catch {
+                            Debugger.Error($"Failed to parse value {strOffsets[i]}");
+                            offsets[i] = 0xFF;
+                        }
+                    }
+                    MappedOffsets.Add(name, offsets);
+                    break;
+                default:
+                    Debugger.Error($"Invalid type: {type}");
+                    break;
             }
         }
 
@@ -93,17 +118,23 @@ namespace HunterPie.Memory {
         }
 
         private static void LoadValuesToMemory() {
-            LoadFromDict(nameof(BASE), out BASE, BASE);
-            LoadFromDict(nameof(LEVEL_OFFSET), out LEVEL_OFFSET, LEVEL_OFFSET);
-            LoadFromDict(nameof(ZONE_OFFSET), out ZONE_OFFSET, ZONE_OFFSET);
-            LoadFromDict(nameof(MONSTER_OFFSET), out MONSTER_OFFSET, MONSTER_OFFSET);
-            LoadFromDict(nameof(SESSION_OFFSET), out SESSION_OFFSET, SESSION_OFFSET);
-            LoadFromDict(nameof(EQUIPMENT_OFFSET), out EQUIPMENT_OFFSET, EQUIPMENT_OFFSET);
-            LoadFromDict(nameof(WEAPON_OFFSET), out WEAPON_OFFSET, WEAPON_OFFSET);
-            LoadFromDict(nameof(PARTY_OFFSET), out PARTY_OFFSET, PARTY_OFFSET);
+            LoadAddressFromDict(nameof(BASE), out BASE, BASE);
+            LoadAddressFromDict(nameof(LEVEL_OFFSET), out LEVEL_OFFSET, LEVEL_OFFSET);
+            LoadAddressFromDict(nameof(MONSTER_OFFSET), out MONSTER_OFFSET, MONSTER_OFFSET);
+            LoadAddressFromDict(nameof(EQUIPMENT_OFFSET), out EQUIPMENT_OFFSET, EQUIPMENT_OFFSET);
+            LoadAddressFromDict(nameof(WEAPON_OFFSET), out WEAPON_OFFSET, WEAPON_OFFSET);
+            // Add this in the next version
+            //LoadAddressFromDict(nameof(SESSION_OFFSET), out SESSION_OFFSET, SESSION_OFFSET);
+            //LoadAddressFromDict(nameof(PARTY_OFFSET), out PARTY_OFFSET, PARTY_OFFSET);
+            // Load offsets
+            LoadOffsetsFromDict("LevelOffsets", out Offsets.LevelOffsets, Offsets.LevelOffsets);
+            LoadOffsetsFromDict("SessionOffsets", out Offsets.SessionOffsets, Offsets.SessionOffsets);
+            LoadOffsetsFromDict("WeaponOffsets", out Offsets.WeaponOffsets, Offsets.WeaponOffsets);
+            LoadOffsetsFromDict("MonsterOffsets", out Offsets.MonsterOffsets, Offsets.MonsterOffsets);
+            LoadOffsetsFromDict("EquipmentOffsets", out Offsets.EquipmentOffsets, Offsets.EquipmentOffsets);
         }
 
-        private static void LoadFromDict(string name, out Int64 variable, Int64 oldValue) {
+        private static void LoadAddressFromDict(string name, out Int64 variable, Int64 oldValue) {
             try {
                 variable = MappedAddresses[name] == 0xFFFFFFFF ? oldValue : MappedAddresses[name];
             } catch {
@@ -112,23 +143,31 @@ namespace HunterPie.Memory {
             }
         }
 
+        private static void LoadOffsetsFromDict(string name, out Int64[] offsetsArray, Int64[] oldOffsetsArray) {
+            try {
+                offsetsArray = MappedOffsets[name];
+            } catch {
+                offsetsArray = oldOffsetsArray;
+                Debugger.Error($"MonsterHunterWorld.{GAME_VERSION}.map missing offsets for {name}");
+            }
+        }
+
         // Support Iceborne and older versions
         private static bool isOlderThanIceborne(int game_version) {
-            return game_version <= GAME_VERSION;
+            if (game_version <= PREICEBORNE_VERSION) {
+                Debugger.Error("Pre-Iceborne game not supported anymore.");
+            }
+            return game_version <= PREICEBORNE_VERSION;
         }
 
         private static void UpdateToIceborneOffsets() {
-            Offsets.LevelOffsets = new Int64[4] { 0x70, 0x18, 0x18, 0xE8 };
-            Offsets.LevelLastOffset = 0x90;
-
-            Offsets.ZoneOffsets = new Int64[4] { 0xB8, 0x58, 0x18, 0x6D0 };
-            Offsets.ZoneLastOffset = 0x358;
-
-            Offsets.SessionOffsets = new Int64[4] { 0x1C0, 0x1B8, 0x8, 0x30 };
-            Offsets.SessionLastOffset = 0x3C8;
-
             Offsets.FertilizersOffset = 0x102FE4;
             Offsets.HarvestBoxOffset = 0x20;
+
+            // Monster Iceborne offsets
+            Offsets.NextMonsterPtr = 0x10;
+            Offsets.MonsterHPComponentOffset = 0x76B0;
+            Offsets.MonsterNamePtr = 0x2e0;
             Debugger.Warn("Updated offsets to Iceborne's version");
         }
     }

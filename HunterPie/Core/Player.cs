@@ -8,8 +8,7 @@ namespace HunterPie.Core {
     public class Player {
 
         // Private variables
-        private int[] _charPlaytimes = new int[3] { -1, -1, -1 };
-        private int _slot = -1;
+        private Int64 _playerAddress = 0x0;
         private int _level;
         private string _name;
         private int _zoneId = -1;
@@ -21,36 +20,44 @@ namespace HunterPie.Core {
         private int _masterRank; // TODO: Add this
 
         // Game info
-        private int[] PeaceZones = new int[11] { 0, 5, 7, 11, 15, 16, 21, 23, 24, 31, 33 };
-        private int[] _HBZones = new int[4] { 31, 33, 11, 21 };
+        private int[] PeaceZones = new int[9] { 0, 301, 302, 303, 305, 306, 501, 502, 503 };
+        private int[] _HBZones = new int[9] { 301, 302, 303, 305, 306, 501, 502, 503, 506 };
 
         // Player info
         private Int64 LEVEL_ADDRESS;
         private Int64 EQUIPMENT_ADDRESS;
-        public int Slot {
-            get {
-                return _slot;
-            } set {
-                if (_slot != value) {
-                    _slot = value;
-                    _onLogin();
+        private Int64 PlayerSelectedPointer;
+        private int PlayerSlot;
+        public Int64 PlayerAddress {
+            get { return _playerAddress; }
+            set {
+                if (_playerAddress != value) {
+                    _playerAddress = value;
+                    if (value != 0x0) _onLogin();
                 }
             }
         }
-        public int Level {
-            get {
-                return _level;
-            } set {
+        public int Level { // Hunter Rank
+            get { return _level; }
+            set {
                 if (_level != value) {
                     _level = value;
                     _onLevelUp();
                 }
             }
         }
+        public int MasterRank {
+            get { return _masterRank; }
+            set {
+                if (_masterRank != value) {
+                    _masterRank = value;
+                    _onMasterRankLevelUp();
+                }
+            }
+        }
         public string Name {
-            get {
-                return _name;
-            } set {
+            get { return _name; }
+            set {
                 if (_name != value) {
                     _name = value;
                     _onNameChange();
@@ -58,9 +65,8 @@ namespace HunterPie.Core {
             }
         }
         public int ZoneID {
-            get {
-                return _zoneId;
-            } set {
+            get { return _zoneId; }
+            set {
                 if (_zoneId != value) {
                     if (PeaceZones.Contains(_zoneId) && !PeaceZones.Contains(value)) _onPeaceZoneLeave();
                     if (_HBZones.Contains(_zoneId) && !_HBZones.Contains(value)) _onVillageLeave();
@@ -72,9 +78,8 @@ namespace HunterPie.Core {
             }
         }
         public string ZoneName {
-            get {
-                return _zoneName;
-            } set {
+            get { return _zoneName; }
+            set {
                 if (_zoneName != value) {
                     _zoneName = value;
                 }
@@ -82,9 +87,8 @@ namespace HunterPie.Core {
         }
         public int LastZoneID { get; private set; }
         public int WeaponID {
-            get {
-                return _weaponId;
-            } set {
+            get { return _weaponId; }
+            set {
                 if (_weaponId != value) {
                     _weaponId = value;
                     _onWeaponChange();
@@ -92,18 +96,16 @@ namespace HunterPie.Core {
             }
         }
         public string WeaponName {
-            get {
-                return _weaponName;
-            } set {
+            get { return _weaponName; }
+            set {
                 if (_weaponName != value) {
                     _weaponName = value;
                 }
             }
         }
         public string SessionID {
-            get {
-                return _sessionId;
-            } set {
+            get { return _sessionId; }
+            set {
                 if (_sessionId != value) {
                     _sessionId = value;
                     _onSessionChange();
@@ -112,16 +114,13 @@ namespace HunterPie.Core {
         }
         public bool inPeaceZone = true;
         public bool inHarvestZone {
-            get {
-                return _HBZones.Contains(ZoneID);
-            }
+            get { return _HBZones.Contains(ZoneID); }
         }
         // Party
         public string[] Party = new string[4];
         public int PartySize {
-            get {
-                return _partySize;
-            } set {
+            get { return _partySize; }
+            set {
                 if (_partySize != value) {
                     _partySize = value;
                     _onPartyChange();
@@ -145,6 +144,7 @@ namespace HunterPie.Core {
         // Level event handler
         public delegate void PlayerEvents(object source, EventArgs args);
         public event PlayerEvents OnLevelChange;
+        public event PlayerEvents OnMasterRankChange;
         public event PlayerEvents OnNameChange;
         public event PlayerEvents OnZoneChange;
         public event PlayerEvents OnWeaponChange;
@@ -155,6 +155,7 @@ namespace HunterPie.Core {
         public event PlayerEvents OnVillageEnter;
         public event PlayerEvents OnPeaceZoneLeave;
         public event PlayerEvents OnVillageLeave;
+        
 
         // Dispatchers
 
@@ -164,6 +165,10 @@ namespace HunterPie.Core {
 
         protected virtual void _onLevelUp() {
             OnLevelChange?.Invoke(this, EventArgs.Empty);
+        }
+
+        protected virtual void _onMasterRankLevelUp() {
+            OnMasterRankChange?.Invoke(this, EventArgs.Empty);
         }
 
         protected virtual void _onNameChange() {
@@ -216,11 +221,13 @@ namespace HunterPie.Core {
 
         private void GetPlayerInfo() {
             while (Scanner.GameIsRunning) {
-                GetPlayerSlot();
-                GetPlayerLevel();
-                GetPlayerName();
+                if (GetPlayerAddress()) {
+                    GetPlayerLevel();
+                    GetPlayerMasterRank();
+                    GetPlayerName();
+                    GetWeaponId();
+                }
                 GetZoneId();
-                GetWeaponId();
                 GetFertilizers();
                 GetSessionId();
                 GetEquipmentAddress();
@@ -229,52 +236,60 @@ namespace HunterPie.Core {
                 GetPrimaryMantleTimers();
                 GetSecondaryMantleTimers();
                 GetParty();
-                Thread.Sleep(1200);
+                Thread.Sleep(200);
             }
             Thread.Sleep(1000);
             GetPlayerInfo();
         }
 
-        private void GetPlayerSlot() {
-            // This is a workaround until I find a better way to get which character is the user on.
-            // This method is based on character playtime, checking which one is being updated
-            Int64 Address = Memory.Address.BASE + Memory.Address.LEVEL_OFFSET;
-            //Int64[] Offset = new Int64[4] { 0x70, 0x68, 0x8, 0x20 };
-            Int64 AddressValue = Scanner.READ_MULTILEVEL_PTR(Address, Memory.Address.Offsets.LevelOffsets);
-            Int64 currentChar;
-            Int64 nextChar = 0x139F20;
-            int playtime;
-            int charId = 999;
-            for (int charIndex = 2; charIndex >= 0; charIndex--) {
-                currentChar = AddressValue + Memory.Address.Offsets.LevelLastOffset + 0x10 + (nextChar * charIndex);
-                playtime = Scanner.READ_INT(currentChar);
-                if (_charPlaytimes[charIndex] != playtime) {
-                    if (_charPlaytimes.Length == 3 && _charPlaytimes[0] != -1) charId = charIndex;
-                    _charPlaytimes[charIndex] = playtime;
+        private bool GetPlayerAddress() {
+            // TODO: Find a better way to detect the player character
+            Int64 Address = Memory.Address.BASE + Memory.Address.WEAPON_OFFSET;
+            Int64 AddressValue = Scanner.READ_MULTILEVEL_PTR(Address, Memory.Address.Offsets.WeaponOffsets);
+            Int64 pAddress = 0x0;
+            Int64 nextPlayer = 0x27E9F0;
+            if (AddressValue > 0x0) {
+                PlayerSelectedPointer = AddressValue;
+                string pName = Scanner.READ_STRING(AddressValue - 0x270, 32);
+                int pLevel = Scanner.READ_INT(AddressValue - 0x230);
+                // If char name starts with a null char then the game haven't launched yet
+                if (pName[0] == '\x00') return false;
+                for (int playerSlot = 0; playerSlot < 3; playerSlot++) {
+                    Address = Memory.Address.BASE + Memory.Address.LEVEL_OFFSET;
+                    pAddress = Scanner.READ_MULTILEVEL_PTR(Address, Memory.Address.Offsets.LevelOffsets) + (nextPlayer * playerSlot);
+                    if (Scanner.READ_INT(pAddress) == pLevel && Scanner.READ_STRING(pAddress - 0x40, 32) == pName && PlayerAddress != pAddress) {
+                        LEVEL_ADDRESS = pAddress;
+                        GetPlayerLevel();
+                        GetPlayerName();
+                        PlayerAddress = pAddress;
+                        this.PlayerSlot = playerSlot;
+                        return true;
+                    }
                 }
+            } else {
+                PlayerAddress = 0x0;
+                LEVEL_ADDRESS = 0x0;
+                return false;
             }
-            Slot = charId;
+            return true;
         }
 
         private void GetPlayerLevel() {
-            Int64 nextChar = 0x139F20; // Next char offset
-            Int64 Address = Memory.Address.BASE + Memory.Address.LEVEL_OFFSET;
-            //Int64[] Offset = new Int64[4] { 0x70, 0x68, 0x8, 0x20 };
-            Int64 AddressValue = Scanner.READ_MULTILEVEL_PTR(Address, Memory.Address.Offsets.LevelOffsets) + (nextChar * (Slot == 999 || Slot == -1 ? 0 : Slot));
-            if (LEVEL_ADDRESS != AddressValue + Memory.Address.Offsets.LevelLastOffset && AddressValue != 0x0) Debugger.Log($"Found player address at 0x{AddressValue+ Memory.Address.Offsets.LevelLastOffset:X}");
-            LEVEL_ADDRESS = AddressValue + Memory.Address.Offsets.LevelLastOffset;
             Level = Scanner.READ_INT(LEVEL_ADDRESS);
         }
 
+        private void GetPlayerMasterRank() {
+            MasterRank = Scanner.READ_INT(LEVEL_ADDRESS + 0x44);
+        }
+
         private void GetPlayerName() {
-            Int64 Address = LEVEL_ADDRESS - 64;
+            Int64 Address = LEVEL_ADDRESS - 0x40;
             Name = Scanner.READ_STRING(Address, 32).Trim('\x00');
         }
 
         private void GetZoneId() {
-            Int64 Address = Memory.Address.BASE + Memory.Address.ZONE_OFFSET;
-            Int64 ZoneAddress = Scanner.READ_MULTILEVEL_PTR(Address, Memory.Address.Offsets.ZoneOffsets);
-            int zoneId = Scanner.READ_INT(ZoneAddress + Memory.Address.Offsets.ZoneLastOffset);
+            int ZoneOffset = PlayerSlot == 0 ? 0x95D0 : 0xAB90;
+            int zoneId = Scanner.READ_INT(PlayerSelectedPointer + ZoneOffset);
             if (zoneId != ZoneID) {
                 this.LastZoneID = ZoneID;
                 this.ZoneID = zoneId;
@@ -290,14 +305,14 @@ namespace HunterPie.Core {
         private void GetWeaponId() {
             Int64 Address = Memory.Address.BASE + Memory.Address.WEAPON_OFFSET;
             Address = Scanner.READ_MULTILEVEL_PTR(Address, Memory.Address.Offsets.WeaponOffsets);
-            WeaponID = Scanner.READ_INT(Address+ Memory.Address.Offsets.WeaponLastOffset);
+            WeaponID = Scanner.READ_INT(Address);
             WeaponName = GStrings.WeaponName(WeaponID);
         }
 
         private void GetSessionId() {
             Int64 Address = Memory.Address.BASE + Memory.Address.SESSION_OFFSET;
             Address = Scanner.READ_MULTILEVEL_PTR(Address, Memory.Address.Offsets.SessionOffsets);
-            SessionID = Scanner.READ_STRING(Address+ Memory.Address.Offsets.SessionLastOffset, 12);
+            SessionID = Scanner.READ_STRING(Address, 12);
         }
 
         private void GetEquipmentAddress() {
