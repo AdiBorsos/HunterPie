@@ -1,13 +1,16 @@
-﻿using HunterPie.GUIControls;
+﻿using System;
+using System.Windows;
+using System.Windows.Input;
+using System.IO;
+using System.Windows.Resources;
+using System.Windows.Markup;
+using System.Windows.Controls;
+using System.Windows.Media.Animation;
+using HunterPie.GUIControls;
 using HunterPie.Logger;
 using HunterPie.Memory;
 using HunterPie.Core;
 using HunterPie.GUI;
-using System;
-using System.Windows;
-using System.Windows.Input;
-using System.IO;
-
 
 namespace HunterPie {
     /// <summary>
@@ -21,21 +24,45 @@ namespace HunterPie {
         Overlay GameOverlay;
 
         // HunterPie version
-        const string HUNTERPIE_VERSION = "1.0.2.6";
+        const string HUNTERPIE_VERSION = "1.0.3.0";
 
         public Hunterpie() {
+            Debugger.InitializeDebugger();
+            LoadCustomTheme();
             InitializeComponent();
             OpenDebugger();
+            AppDomain.CurrentDomain.UnhandledException += ExceptionLogger;
             // Initialize rich presence
             Discord = new Presence(MonsterHunter);
             // Initialize everything under this line
             UserSettings.InitializePlayerConfig();
             CheckIfUpdateEnableAndStart();
             // Updates version_text
-            this.version_text.Content = $"Version: {HUNTERPIE_VERSION}";
+            this.version_text.Content = $"Version: {HUNTERPIE_VERSION} ({UserSettings.PlayerConfig.HunterPie.Update.Branch})";
             Debugger.Warn("Initializing HunterPie!");
-            GStrings.InitStrings();
+            GStrings.InitStrings(UserSettings.PlayerConfig.HunterPie.Language);
+
             StartEverything();
+        }
+
+        private void LoadCustomTheme() {
+            /*
+            try {
+                using (FileStream stream = new FileStream("Themes/Light.xaml", FileMode.Open)) {
+                    XamlReader reader = new XamlReader();
+                    ResourceDictionary ThemeDictionary = (ResourceDictionary)reader.LoadAsync(stream);
+                    Application.Current.Resources.MergedDictionaries.Add(ThemeDictionary);
+                }
+            } catch {
+                Debugger.Error("Failed to load custom theme");
+            }
+            */
+        }
+
+        private void ExceptionLogger(object sender, UnhandledExceptionEventArgs e) {
+            using (var crashfile = File.AppendText("crashes.txt")) {
+                crashfile.Write(e.ExceptionObject.ToString());
+            }
         }
 
         private bool StartUpdateProcess() {
@@ -64,7 +91,7 @@ namespace HunterPie {
                     }
                 }
                 if (justUpdated) {
-                    openChangeLog();
+                    OpenChangelog();
                     return;
                 }
                 if (latestVersion) {
@@ -72,21 +99,32 @@ namespace HunterPie {
                 }
                 // This will update Update.exe
                 AutoUpdate au = new AutoUpdate(UserSettings.PlayerConfig.HunterPie.Update.Branch);
-                au.checkAutoUpdate();
-                if (au.offlineMode) {
-                    Debugger.Error("Failed to update HunterPie. Check if you're connected to the internet.");
-                    Debugger.Warn("HunterPie is now in offline mode.");
-                    Discord.SetOfflineMode();
-                    return;
+                au.Instance.DownloadFileCompleted += OnUpdaterDownloadComplete;
+                if (!au.CheckAutoUpdate()) {
+                    HandleUpdaterUpdate();
                 }
-                bool StartUpdate = StartUpdateProcess();
-                if (StartUpdate) {
-                    Environment.Exit(0);
-                } else {
-                    MessageBox.Show("Update.exe not found! Skipping auto-update...", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                }
+                this.Hide();
             } else {
                 Debugger.Error("Auto-update is disabled. If your HunterPie has any issues or doesn't support the current game version, try re-enabling auto-update!");
+            }
+        }
+
+        private void OnUpdaterDownloadComplete(object sender, System.ComponentModel.AsyncCompletedEventArgs e) {
+            if (e.Error != null) {
+                Debugger.Error("Failed to update HunterPie. Check if you're connected to the internet.");
+                Debugger.Warn("HunterPie is now in offline mode.");
+                Discord.SetOfflineMode();
+                return;
+            }
+            HandleUpdaterUpdate();
+        }
+
+        private void HandleUpdaterUpdate() {
+            bool StartUpdate = StartUpdateProcess();
+            if (StartUpdate) {
+                Environment.Exit(0);
+            } else {
+                MessageBox.Show("Update.exe not found! Skipping auto-update...", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -99,14 +137,14 @@ namespace HunterPie {
         }
 
         private void StartEverything() {
-            MonsterHunter.StartScanning();
             HookEvents();
             Scanner.StartScanning(); // Scans game memory
             GameOverlay = new Overlay(MonsterHunter);
             UserSettings.TriggerSettingsEvent();
-            GameOverlay.Show();
+            GameOverlay.HookEvents(); // Calls this after settings
         }
 
+        /* Game events */
         private void HookEvents() {
             // Scanner events
             Scanner.OnGameStart += OnGameStart;
@@ -114,11 +152,19 @@ namespace HunterPie {
             // Game events
             MonsterHunter.Player.OnZoneChange += OnZoneChange;
             MonsterHunter.Player.OnCharacterLogin += OnLogin;
+            MonsterHunter.Player.OnSessionChange += OnSessionChange;
             // Settings
             UserSettings.OnSettingsUpdate += SendToOverlay;
         }
 
+        private void OnSessionChange(object source, EventArgs args) {
+            Debugger.Log($"SESSION: {MonsterHunter.Player.SessionID}");
+            
+        }
+
         private void UnhookEvents() {
+            // Debug
+            AppDomain.CurrentDomain.UnhandledException -= ExceptionLogger;
             // Scanner events
             Scanner.OnGameStart -= OnGameStart;
             Scanner.OnGameClosed -= OnGameClose;
@@ -144,82 +190,122 @@ namespace HunterPie {
         }
 
         public void OnGameStart(object source, EventArgs e) {
+            MonsterData.LoadMonsterData();
+            MonsterHunter.StartScanning();
             if (Address.LoadMemoryMap(Scanner.GameVersion) || Scanner.GameVersion == Address.GAME_VERSION) {
                 Debugger.Warn($"Loaded 'MonsterHunterWorld.{Scanner.GameVersion}.map'");
             } else {
                 Debugger.Error($"Detected game version ({Scanner.GameVersion}) not mapped yet!");
                 return;
             }
+            
         }
 
         public void OnGameClose(object source, EventArgs e) {
+            MonsterData.UnloadMonsterData();
             if (UserSettings.PlayerConfig.HunterPie.Options.CloseWhenGameCloses) {
-                this.Close();
-                Environment.Exit(0);
+                Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Normal, new Action(() => {
+                    this.Close();
+                }));
             }
+            MonsterHunter.StopScanning();
         }
 
-        private void Label_MouseDown(object sender, MouseButtonEventArgs e) {
-            // X button function
-            bool ExitConfirmation = MessageBox.Show("Are you sure you want to exit HunterPie?", "HunterPie", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes;
-            if (ExitConfirmation) {
-                try {
-                    // Stop Threads
-                    MonsterHunter.StopScanning();
-                    Scanner.StopScanning();
-                    GameOverlay.Close();
-                } catch {}
-                // Close stuff
-                this.Close();
-                Environment.Exit(0);
-            }
-        }
-
-        private void WindowTopBar_MouseDown(object sender, MouseButtonEventArgs e) {
-            // When top bar is held by LMB
-            this.DragMove();
-        }
-
-        private void minimizeWindow_MouseDown(object sender, MouseButtonEventArgs e) {
-            this.WindowState = WindowState.Minimized;
-        }
-
+        /* Open sub windows */
+        
         private void OpenDebugger() {
+            this.SwitchButtonOn(BUTTON_CONSOLE);
+            this.SwitchButtonOff(BUTTON_CHANGELOG);
+            this.SwitchButtonOff(BUTTON_SETTINGS);
             ConsolePanel.Children.Clear();
             ConsolePanel.Children.Add(Debugger.Instance);
         }
 
-        private void OpenSettingsWindow() {
+        private void OpenSettings() {
+            this.SwitchButtonOff(BUTTON_CONSOLE);
+            this.SwitchButtonOff(BUTTON_CHANGELOG);
+            this.SwitchButtonOn(BUTTON_SETTINGS);
             ConsolePanel.Children.Clear();
             ConsolePanel.Children.Add(Settings.Instance);
             Settings.RefreshSettingsUI();
         }
 
-        private void consoleButton_Click(object sender, RoutedEventArgs e) {
-            OpenDebugger();
-        }
-
-        private void settingsButton_Click(object sender, RoutedEventArgs e) {
-            OpenSettingsWindow();
-        }
-
-        private void window_Closing(object sender, System.ComponentModel.CancelEventArgs e) {
-            if (GameOverlay != null) GameOverlay.Destroy();
-            this.UnhookEvents();
-            
-        }
-
-        private void githubButton_Click(object sender, RoutedEventArgs e) {
-            System.Diagnostics.Process.Start("https://github.com/Haato3o/HunterPie");
-        }
-
-        private void openChangeLog() {
+        private void OpenChangelog() {
+            this.SwitchButtonOff(BUTTON_CONSOLE);
+            this.SwitchButtonOn(BUTTON_CHANGELOG);
+            this.SwitchButtonOff(BUTTON_SETTINGS);
             ConsolePanel.Children.Clear();
             ConsolePanel.Children.Add(Changelog.Instance);
         }
 
-        private void changelogButton_click(object sender, RoutedEventArgs e) {
-            openChangeLog();
+        /* Animations */
+        private void SwitchButtonOn(Button buttonActive) {
+            buttonActive.SetValue(BorderThicknessProperty, new Thickness(4, 0, 0, 0));
+        }
+
+        private void SwitchButtonOff(Button buttonActive) {
+            buttonActive.SetValue(BorderThicknessProperty, new Thickness(0, 0, 0, 0));
+        }
+
+        /* Events */
+
+        private void OnCloseWindowButtonClick(object sender, MouseButtonEventArgs e) {
+            // X button function
+            bool ExitConfirmation = MessageBox.Show("Are you sure you want to exit HunterPie?", "HunterPie", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes;
+            if (ExitConfirmation) {
+                this.Close();
+            }
+        }
+
+        private void OnWindowDrag(object sender, MouseButtonEventArgs e) {
+            // When top bar is held by LMB
+            this.DragMove();
+        }
+
+        private void OnMinimizeButtonClick(object sender, MouseButtonEventArgs e) {
+            this.WindowState = WindowState.Minimized;
+        }
+
+        private void OnWindowClosing(object sender, System.ComponentModel.CancelEventArgs e) {
+            this.Hide();
+            // Stop Threads
+            GameOverlay.Destroy();
+            if (MonsterHunter.IsActive) MonsterHunter.StopScanning();
+            Discord.CloseConnection();
+            Scanner.StopScanning();
+            
+            // Close stuff
+            this.UnhookEvents();
+            Environment.Exit(0);
+        }
+
+        private void OnGithubButtonClick(object sender, RoutedEventArgs e) {
+            System.Diagnostics.Process.Start("https://github.com/Haato3o/HunterPie");
+        }
+
+        private void OnConsoleButtonClick(object sender, RoutedEventArgs e) {
+            OpenDebugger();
+        }
+
+        private void OnSettingsButtonClick(object sender, RoutedEventArgs e) {
+            OpenSettings();
+        }
+
+        private void OnChangelogButtonClick(object sender, RoutedEventArgs e) {
+            OpenChangelog();
+        }
+
+        private void OnLaunchGameButtonClick(object sender, RoutedEventArgs e) {
+            // Shorten the class name
+            var launchOptions = UserSettings.PlayerConfig.HunterPie.Launch;
+
+            if (launchOptions.GamePath == "") {
+                if (MessageBox.Show("You haven't added the game path yet. Do you want to do it now?", "Monster Hunter World path not found", MessageBoxButton.YesNo, MessageBoxImage.Error) == MessageBoxResult.Yes) {
+                    OpenSettings();
+                }
+            } else {
+                LaunchGame();
+            }
         }
 
         private void LaunchGame() {
@@ -231,20 +317,10 @@ namespace HunterPie {
             } catch {
                 Debugger.Error("Failed to launch Monster Hunter World. Common reasons for this error are:\n- Wrong file path;");
             }
-            
         }
 
-        private void launchGameButton_Click(object sender, RoutedEventArgs e) {
-            // Shorten the class name
-            var launchOptions = UserSettings.PlayerConfig.HunterPie.Launch;
-
-            if (launchOptions.GamePath == "") {
-                if (MessageBox.Show("You haven't added the game path yet. Do you want to do it now?", "Monster Hunter World path not found", MessageBoxButton.YesNo, MessageBoxImage.Error) == MessageBoxResult.Yes) {
-                    OpenSettingsWindow();
-                }
-            } else {
-                LaunchGame();
-            }
+        private void OnDiscordButtonClick(object sender, RoutedEventArgs e) {
+            System.Diagnostics.Process.Start("https://discord.gg/5pdDq4Q");
         }
     }
 }

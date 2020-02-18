@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Documents;
 
@@ -14,7 +15,7 @@ namespace HunterPie.Logger {
         private static string DISCORD = "#52A0FF";
         private static string NORMAL = "#FFFFFF";
 
-        public static Debugger _Instance;
+        private static Debugger _Instance;
         public static Debugger Instance {
             get {
                 if (_Instance == null) {
@@ -27,20 +28,28 @@ namespace HunterPie.Logger {
             InitializeComponent();
         }
 
-        public static void Warn(string message) {
-            PrintOnConsole(message, WARN);
+        public static Debugger InitializeDebugger() {
+            return Instance;
         }
 
-        public static void Error(string message) {
-            PrintOnConsole($"[ERROR] {message}", ERROR);
+        public static void Warn(object message) {
+            PrintOnConsole(message?.ToString(), WARN);
         }
 
-        public static void Log(string message) {
-            PrintOnConsole($"[LOG] {message}", NORMAL);
+        public static void Error(object message) {
+            PrintOnConsole($"[ERROR] {message?.ToString()}", ERROR);
         }
 
-        public static void Discord(string message) {
-            PrintOnConsole($"[DISCORD] {message}", DISCORD);
+        public static void Log(object message) {
+            PrintOnConsole($"[LOG] {message?.ToString()}", NORMAL);
+        }
+
+        public static void Discord(object message) {
+            PrintOnConsole($"[DISCORD] {message?.ToString()}", DISCORD);
+        }
+
+        public static void Update(object message) {
+            PrintOnConsole($"[UPDATE] {message?.ToString()}", NORMAL);
         }
 
         private static void ScrollToEnd() {
@@ -58,8 +67,9 @@ namespace HunterPie.Logger {
             _Instance.Console.Dispatcher.BeginInvoke(
                 System.Windows.Threading.DispatcherPriority.Background,
                 new Action( () => {
-                    TextRange msg = new TextRange(_Instance.Console.Document.ContentEnd, _Instance.Console.Document.ContentEnd);
-                    msg.Text = message;
+                    TextRange msg = new TextRange(_Instance.Console.Document.ContentEnd, _Instance.Console.Document.ContentEnd) {
+                        Text = message
+                    };
                     msg.ApplyPropertyValue(TextElement.ForegroundProperty, color);
                     ScrollToEnd();
                 })

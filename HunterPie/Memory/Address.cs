@@ -6,23 +6,25 @@ using HunterPie.Logger;
 namespace HunterPie.Memory {
     class Address {
         public class Offsets {
-            public static Int64[] LevelOffsets = new Int64[5] { 0x70, 0x68, 0x8, 0x20, 0x108 };
+            public static int[] LevelOffsets = new int[5] { 0x70, 0x68, 0x8, 0x20, 0x108 };
 
-            public static Int64[] WeaponOffsets = new Int64[5] { 0x70, 0x5A8, 0x310, 0x148, 0x2B8 };
+            public static int[] WeaponOffsets = new int[5] { 0x70, 0x5A8, 0x310, 0x148, 0x2B8 };
 
-            public static Int64[] SessionOffsets = new Int64[5] { 0xA0, 0x20, 0x80, 0x9C, 0x3C8 };
+            public static int[] SessionOffsets = new int[5] { 0xA0, 0x20, 0x80, 0x9C, 0x3C8 };
 
-            public static Int64[] EquipmentOffsets = new Int64[5] { 0x78, 0x50, 0x40, 0x450, 0x0 };
+            public static int[] EquipmentOffsets = new int[5] { 0x78, 0x50, 0x40, 0x450, 0x0 };
 
-            public static Int64[] PartyOffsets = new Int64[2] { 0x0, 0x0 };
+            public static int[] PartyOffsets = new int[1] { 0x0526AD };
 
-            public static Int64[] MonsterOffsets = new Int64[3] { 0xAF738, 0x47CDE0, 0x0 };
-            public static Int64 NextMonsterPtr = 0x28;
-            public static Int64 MonsterHPComponentOffset = 0x129D8 + 0x48;
-            public static Int64 MonsterNamePtr = 0x290;
+            public static int[] DamageOffsets;
 
-            public static Int64 FertilizersOffset = 0x6740C;
-            public static Int64 HarvestBoxOffset = 0x10;
+            public static int[] MonsterOffsets = new int[3] { 0xAF738, 0x47CDE0, 0x0 };
+            public static int NextMonsterPtr = 0x28;
+            public static int MonsterHPComponentOffset = 0x129D8 + 0x48;
+            public static int MonsterNamePtr = 0x290;
+
+            public static int FertilizersOffset = 0x6740C;
+            public static int HarvestBoxOffset = 0x10;
         }
         public static int PREICEBORNE_VERSION = 168031;
         public static int GAME_VERSION = 168031;
@@ -36,6 +38,7 @@ namespace HunterPie.Memory {
         public static Int64 EQUIPMENT_OFFSET = 0x3B50668;
         public static Int64 WEAPON_OFFSET = 0x3BEDE58;
         public static Int64 PARTY_OFFSET = 0x48E1850;
+        public static Int64 DAMAGE_OFFSET = 0x0;
 
         // Consts
         public const Int64 cooldownFixed = 0x9EC;
@@ -45,7 +48,7 @@ namespace HunterPie.Memory {
 
         // Loaded values
         private static Dictionary<string, Int64> MappedAddresses = new Dictionary<string, Int64>();
-        private static Dictionary<string, Int64[]> MappedOffsets = new Dictionary<string, Int64[]>();
+        private static Dictionary<string, int[]> MappedOffsets = new Dictionary<string, int[]>();
         
         public static bool LoadMemoryMap(int version) {
             string FILE_NAME = $"MonsterHunterWorld.{version}.map";
@@ -95,10 +98,10 @@ namespace HunterPie.Memory {
                     break;
                 case "Offset":
                     string[] strOffsets = value.Split(',');
-                    Int64[] offsets = new Int64[strOffsets.Length];
+                    int[] offsets = new int[strOffsets.Length];
                     for (int i = 0; i < strOffsets.Length; i++) {
                         try {
-                            offsets[i] = ParseHex(strOffsets[i]);
+                            offsets[i] = ParseHexToInt32(strOffsets[i]);
                         } catch {
                             Debugger.Error($"Failed to parse value {strOffsets[i]}");
                             offsets[i] = 0xFF;
@@ -112,9 +115,12 @@ namespace HunterPie.Memory {
             }
         }
 
+        private static int ParseHexToInt32(string hexstring) {
+            return Convert.ToInt32(hexstring.Replace("0x", ""), 16);
+        }
+
         private static Int64 ParseHex(string hexstring) {
-            Int64 result = Convert.ToInt64(hexstring.Replace("0x", ""), 16);
-            return result;
+            return Convert.ToInt64(hexstring.Replace("0x", ""), 16);
         }
 
         private static void LoadValuesToMemory() {
@@ -123,15 +129,20 @@ namespace HunterPie.Memory {
             LoadAddressFromDict(nameof(MONSTER_OFFSET), out MONSTER_OFFSET, MONSTER_OFFSET);
             LoadAddressFromDict(nameof(EQUIPMENT_OFFSET), out EQUIPMENT_OFFSET, EQUIPMENT_OFFSET);
             LoadAddressFromDict(nameof(WEAPON_OFFSET), out WEAPON_OFFSET, WEAPON_OFFSET);
-            // Add this in the next version
-            //LoadAddressFromDict(nameof(SESSION_OFFSET), out SESSION_OFFSET, SESSION_OFFSET);
-            //LoadAddressFromDict(nameof(PARTY_OFFSET), out PARTY_OFFSET, PARTY_OFFSET);
+            LoadAddressFromDict(nameof(SESSION_OFFSET), out SESSION_OFFSET, SESSION_OFFSET);
+            LoadAddressFromDict(nameof(PARTY_OFFSET), out PARTY_OFFSET, PARTY_OFFSET);
+            LoadAddressFromDict(nameof(DAMAGE_OFFSET), out DAMAGE_OFFSET, DAMAGE_OFFSET);
             // Load offsets
             LoadOffsetsFromDict("LevelOffsets", out Offsets.LevelOffsets, Offsets.LevelOffsets);
             LoadOffsetsFromDict("SessionOffsets", out Offsets.SessionOffsets, Offsets.SessionOffsets);
             LoadOffsetsFromDict("WeaponOffsets", out Offsets.WeaponOffsets, Offsets.WeaponOffsets);
             LoadOffsetsFromDict("MonsterOffsets", out Offsets.MonsterOffsets, Offsets.MonsterOffsets);
             LoadOffsetsFromDict("EquipmentOffsets", out Offsets.EquipmentOffsets, Offsets.EquipmentOffsets);
+            LoadOffsetsFromDict("PartyOffsets", out Offsets.PartyOffsets, Offsets.PartyOffsets);
+            LoadOffsetsFromDict("DamageOffsets", out Offsets.DamageOffsets, Offsets.DamageOffsets);
+            // Clear addresses loaded into memory
+            MappedAddresses.Clear();
+            MappedOffsets.Clear();
         }
 
         private static void LoadAddressFromDict(string name, out Int64 variable, Int64 oldValue) {
@@ -143,7 +154,7 @@ namespace HunterPie.Memory {
             }
         }
 
-        private static void LoadOffsetsFromDict(string name, out Int64[] offsetsArray, Int64[] oldOffsetsArray) {
+        private static void LoadOffsetsFromDict(string name, out int[] offsetsArray, int[] oldOffsetsArray) {
             try {
                 offsetsArray = MappedOffsets[name];
             } catch {

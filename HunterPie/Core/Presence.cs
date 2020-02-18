@@ -35,6 +35,14 @@ namespace HunterPie.Core {
             ctx.Player.OnZoneChange += HandlePresence;
         }
         
+        private void UnhookEvents() {
+            UserSettings.OnSettingsUpdate -= HandleSettings;
+            Scanner.OnGameStart -= StartRPC;
+            Scanner.OnGameClosed -= CloseRPCConnection;
+            ctx.OnClockChange -= HandlePresence;
+            ctx.Player.OnZoneChange -= HandlePresence;
+        }
+
             /* Connection */
 
         public void StartRPC(object source, EventArgs e) {
@@ -47,10 +55,16 @@ namespace HunterPie.Core {
             }
         }
 
+        public void CloseConnection() {
+            if (Client != null) {
+                Debugger.Discord("Closed connection");
+                Client.ClearPresence();
+                Client.Dispose();
+            }
+        }
+
         public void CloseRPCConnection(object source, EventArgs e) {
-            Debugger.Discord("Closed connection");
-            Client.ClearPresence();
-            Client.Dispose();
+            CloseConnection();
         }
 
         public void HandleSettings(object source, EventArgs e) {
@@ -85,10 +99,10 @@ namespace HunterPie.Core {
                         break;
                     }
                     Instance.Details = ctx.HuntedMonster == null ? ctx.Player.inPeaceZone ? "Idle" : "Exploring" : $"Hunting {ctx.HuntedMonster.Name} ({(int)(ctx.HuntedMonster.HPPercentage * 100)}%)";
-                    Instance.State = ctx.Player.PartySize > 1 ? "In Party" : "Solo";
-                    Instance.Assets = GenerateAssets(ctx.Player.ZoneName == null ? "main-menu" : $"st{ctx.Player.ZoneID}", ctx.Player.ZoneName == "Main Menu" ? null : ctx.Player.ZoneName, ctx.Player.WeaponName == null ? "hunter-rank" : ctx.Player.WeaponName.Replace(' ', '-').ToLower(), $"{ctx.Player.Name} | HR: {ctx.Player.Level} | MR: {ctx.Player.MasterRank}");
+                    Instance.State = ctx.Player.PlayerParty.Size > 1 ? "In Party" : "Solo";
+                    Instance.Assets = GenerateAssets(ctx.Player.ZoneName == null ? "main-menu" : $"st{ctx.Player.ZoneID}", ctx.Player.ZoneName == "Main Menu" ? null : ctx.Player.ZoneName, ctx.Player.WeaponName == null ? "hunter-rank" : $"weap{ctx.Player.WeaponID}", $"{ctx.Player.Name} | HR: {ctx.Player.Level} | MR: {ctx.Player.MasterRank}");
                     // TODO: Generate party hash
-                    Instance.Party = MakeParty(ctx.Player.PartySize, ctx.Player.PartyMax, "test");
+                    Instance.Party = MakeParty(ctx.Player.PlayerParty.Size, ctx.Player.PlayerParty.MaxSize, "test");
                     break;
             }
             Client.SetPresence(Instance);
@@ -103,19 +117,21 @@ namespace HunterPie.Core {
         }
 
         public Assets GenerateAssets(string largeImage, string largeImageText, string smallImage, string smallImageText) {
-            Assets assets = new Assets();
-            assets.LargeImageKey = largeImage;
-            assets.LargeImageText = largeImageText;
-            assets.SmallImageKey = smallImage;
-            assets.SmallImageText = smallImageText;
+            Assets assets = new Assets {
+                LargeImageKey = largeImage,
+                LargeImageText = largeImageText,
+                SmallImageKey = smallImage,
+                SmallImageText = smallImageText
+            };
             return assets;
         }
 
-        public Party MakeParty(int partySize, int maxParty, string partyHash) {
-            Party party = new Party();
-            party.Size = partySize;
-            party.Max = maxParty;
-            party.ID = partyHash;
+        public DiscordRPC.Party MakeParty(int partySize, int maxParty, string partyHash) {
+            DiscordRPC.Party party = new DiscordRPC.Party {
+                Size = partySize,
+                Max = maxParty,
+                ID = partyHash
+            };
             return party;
         }
 
